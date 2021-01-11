@@ -13,7 +13,7 @@ def get_time_range():
 
 def get_locals(connection):
     cursor = connection.cursor()
-    cursor.execute('SELECT id FROM companies_local')
+    cursor.execute('SELECT loc.id, loc.company_id, com.fee FROM companies_local loc JOIN companies_company com ON loc.company_id = com.id')
     results = cursor.fetchall()
 
     return results
@@ -47,14 +47,13 @@ def get_order_data(from_date, to_date, local_id, connection):
 
     return {
         'sub_total': sub_total,
-        'fee': 0,
         'igv_total': igv_total,
         'total': total,
         'order_ids': order_ids
     }
 
 
-def process_billing(local, from_date, to_date, connection):
+def process_billing(local, from_date, to_date, company_id, company_fee, connection):
     order_data = get_order_data(from_date, to_date, local, connection)
 
     cursor = connection.cursor()
@@ -64,12 +63,12 @@ def process_billing(local, from_date, to_date, connection):
     cursor.execute(sql_query, (
         str(uuid.uuid4()),
         order_data['sub_total'],
-        order_data['fee'],
+        0 if company_fee == None else company_fee,
         order_data['total'],
         order_data['igv_total'],
         from_date,
         to_date,
-        1,
+        company_id,
         local,
         'INVOICED',
         to_date,
@@ -103,10 +102,10 @@ def local_lambda():
 
         time_range = get_time_range()
 
-        locals = get_locals(connection)
+        locals_data = get_locals(connection)
 
-        for local in locals:
-            process_billing(local[0], time_range[0], time_range[1], connection)
+        for local_data in locals_data:
+            process_billing(local_data[0], time_range[0], time_range[1], local_data[1], local_data[2], connection)
 
     except psycopg2.DatabaseError as e:
         print(f'Error {e}')
