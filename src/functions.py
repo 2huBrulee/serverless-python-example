@@ -1,7 +1,8 @@
 import datetime
 import psycopg2
 import uuid
-
+import sendgrid
+from sendgrid.helpers.mail import *
 
 def get_time_range():
     today = datetime.date.today()
@@ -53,6 +54,20 @@ def get_order_data(from_date, to_date, local_id, connection):
     }
 
 
+def send_mail_with_attachment(to_email, email_body):
+    sg = sendgrid.SendGridAPIClient(api_key='SENDGRID_API_KEY')
+    from_email = Email("pedidos@weeare.pe")
+    to_email = To("test@example.com")
+    subject = "Resumen Semanal"
+    content = Content("text/plain", email_body)
+    mail = Mail(from_email, to_email, subject, content)
+    response = sg.client.mail.send.post(request_body=mail.get())
+
+    print(response.status_code)
+    print(response.body)
+    print(response.headers)
+
+
 def process_billing(local, from_date, to_date, company_id, company_fee, connection):
     order_data = get_order_data(from_date, to_date, local, connection)
 
@@ -86,13 +101,29 @@ def process_billing(local, from_date, to_date, company_id, company_fee, connecti
             order_id
         ))
 
+    suppliers_mails_query = 'SELECT email FROM companies_supplier WHERE company_id = %s'
+
+    cursor.execute(suppliers_mails_query, (
+        str(company_id)
+    ))
+
+    suppliers_mails = cursor.fetchall()
+
     connection.commit()
 
     # aca llamar a funcion que crea el reporte
     # guardarlo en S3
     # enviarlo por correo
 
-    print(new_billing_id)
+    recipients = ''
+
+    for supplier_mail in suppliers_mails:
+        recipients += supplier_mail[0] + ','
+
+    if len(recipients) > 0:
+        recipients = recipients[:-1]
+
+    send_mail_with_attachment(recipients, str(order_data))
 
 
 def local_lambda():
