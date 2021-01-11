@@ -64,7 +64,7 @@ def process_billing(local, from_date, to_date, company_id, company_fee, connecti
         str(uuid.uuid4()),
         order_data['sub_total'],
         0 if company_fee == None else company_fee,
-        order_data['total'],
+        order_data['total'] if company_fee == None else company_fee + order_data['total'],
         order_data['igv_total'],
         from_date,
         to_date,
