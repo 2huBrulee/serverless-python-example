@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Document</title>
+    <style>
+        @page {
+           size: A4 landscape;
+        }
+        .content{
+            width: 960px;
+            margin:auto;
+        }
+        .row{
+            width: 100%;
+            font-size: 0;
+        }
+        .row .col-6{
+            display: inline-block;
+            vertical-align: top;
+            width:50%;
+        }
+        p{
+            font-size: 15px;
+        }
+        strong{
+            font-size: 15px;
+
+        }
+        h5{
+            font-size: 20px;
+        }
+        h6{
+            font-size: 18px;
+        }
+        p,h1,h3,h2,h5,h6, h4{
+            margin: 0;
+        }
+        .row{
+            margin: 10px 0;
+        }
+        .filtros .right{
+            text-align: right;
+        }
+        .filtros .right p{
+            margin-right: 5px;
+            display: inline;
+        }
+        .filtros .right h6{
+            display: inline;
+        }
+        .filtros .right h5{
+            display: inline;
+        }
+        .content-table{
+            margin-top: 60px;
+        }
+        table, td, th {
+            /*border: 1px solid #ddd;*/
+            text-align: left;
+        }
+        tr th{
+            border-bottom: 1px solid black;
+        }
+        table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+
+        th, td {
+            padding: 10px 6px;
+            border-bottom: 1px solid #ddd;
+            font-size: 12px;
+        }
+        header img{
+            margin-top: 30px;
+            width: 160px;
+        }
+        .content-page{
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="content">
+            <img src="https://bancofalabellapromociones.pe/static/administrador/assets/img/weeare.png" alt="" width="80">
+        </div>
+    </header>
+    <div class="content content-page">
+        <div class="filtros">
+            <div class="row">
+                <div class="col-6">
+                    <strong>Validaciones Weeare&nbsp;</strong>
+                    <p> Del {{billing.start_date}} al {{billing.end_date}}</p>
+                </div>
+                <div class="col-6 right">
+                    <div class=""><p>Total:&nbsp;&nbsp; </p>
+                    <h6>S/ {{billing.sub_total}}</h6></div>
+                    <div class="">
+                        <p>IGV:&nbsp;&nbsp;&nbsp;&nbsp;  </p>
+                        <h6>S/ {{billing.igv}}</h6>
+                    </div>
+                    <div class="">
+                        <p>Monto total a facturar: </p>
+                        <h5>S/ {{billing.total}}</h5>
+                    </div>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-6">
+                    <p>Local: <strong>{{billing.local.name}}</strong></p>
+                </div>
+
+            </div>
+        </div>
+        <div class="content-table">
+            <table>
+              <tr>
+                <th>Hora / Fecha</th>
+                <th>Orden</th>
+                <th>Cuenta sub total</th>
+                <th>IGV en S/</th>
+                <th>Comision en S/</th>
+                <th>Total</th>
+              </tr>
+              {% for order in orders %}
+                  <tr>
+                    <td>{{order.created}}</td>
+                    <td>{{order.number}}</td>
+                    <td>S/ {{order.sub_total}}</td>
+                    <td>S/ {{order.igv}}</td>
+                    <td>S/ {{order.company.fee}}</td>
+                    <td>S/ {{order.total}}</td>
+
+                  </tr>
+              {% endfor %}
+            </table>
+        </div>
+    </div>
+</body>
+</html>
