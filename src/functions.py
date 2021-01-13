@@ -79,7 +79,7 @@ def send_mail_with_attachment(recipients_array, email_body, pdf):
     message.attachment = attachedFile
 
     sg = SendGridAPIClient(
-        api_key='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')
+        api_key='API_KEY')
 
     response = sg.send(message)
 
