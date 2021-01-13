@@ -9,6 +9,11 @@ from sendgrid import SendGridAPIClient
 from sendgrid.helpers.mail import (
     Mail, Attachment, FileContent, FileName, FileType, Disposition)
 import base64
+import os
+from dotenv import load_dotenv
+from pathlib import Path
+env_path = Path('.') / '.env'
+load_dotenv(dotenv_path=env_path)
 
 
 def get_time_range():
@@ -79,7 +84,7 @@ def send_mail_with_attachment(recipients_array, email_body, pdf):
     message.attachment = attachedFile
 
     sg = SendGridAPIClient(
-        api_key='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')
+        api_key=os.getenv("SEND_GRIP_API_KEY"))
 
     response = sg.send(message)
 
