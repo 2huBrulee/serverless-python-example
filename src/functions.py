@@ -79,7 +79,7 @@ def send_mail_with_attachment(recipients_array, email_body, pdf):
     message.attachment = attachedFile
 
     sg = SendGridAPIClient(
-        api_key='API_KEY')
+        api_key='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')
 
     response = sg.send(message)
 
@@ -128,7 +128,6 @@ def process_billing(local, from_date, to_date, company_id, company_fee, connecti
     new_billing_id = cursor.fetchone()[0]
 
     for order in order_data['data']:
-        print(order)
         sql_query_billing_orders = 'INSERT INTO billings_billing_orders (billing_id, order_id) VALUES ( %s, %s)'
 
         cursor.execute(sql_query_billing_orders, (
@@ -170,8 +169,9 @@ def process_billing(local, from_date, to_date, company_id, company_fee, connecti
     order_context = []
 
     for order in order_data['data']:
+        fmt_datetime = str(order[5].strftime("%I:%M %p %d/%m/%Y"))
         order_context.append({
-            'created': order[5],
+            'created': fmt_datetime,
             'number': order[4],
             'igv': order[1],
             'sub_total': order[3],
@@ -181,7 +181,7 @@ def process_billing(local, from_date, to_date, company_id, company_fee, connecti
             }
         })
 
-    billing_context = {'start_date': from_date, 'end_date': to_date,
+    billing_context = {'start_date': str(from_date.strftime("%d/%m/%Y")), 'end_date': str(to_date.strftime("%d/%m/%Y")),
                        'sub_total': order_data['sub_total'], 'igv': order_data['igv_total'], 'total': order_data['total'], 'local': {'name': local_name}}
 
     pdf = generate_pdf(billing_context, order_context)
