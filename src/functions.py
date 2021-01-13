@@ -37,12 +37,13 @@ def get_order_data(from_date, to_date, local_id, connection):
 
     cursor = connection.cursor()
 
-    sql_query = 'SELECT id, igv, total, sub_total, number, created FROM orders_order WHERE created > %s AND created < %s AND local_id = %s'
+    sql_query = 'SELECT id, igv, total, sub_total, number, created FROM orders_order WHERE due_date >= %s AND due_date < %s AND local_id = %s AND status_billing = %s'
 
     cursor.execute(sql_query, (
         from_date,
         to_date,
         local_id,
+        'READY FOR INVOICE'
     ))
 
     results = cursor.fetchall()
@@ -139,6 +140,14 @@ def process_billing(local, from_date, to_date, company_id, company_fee, connecti
             new_billing_id,
             order[0]
         ))
+
+        sql_query_update_order = 'UPDATE orders_order SET status_billing = %s WHERE id = %s'
+
+        cursor.execute(sql_query_update_order, (
+            'INVOICED',
+            order[0]
+        ))
+
 
     suppliers_mails_query = 'SELECT email FROM companies_supplier WHERE company_id = %s'
 

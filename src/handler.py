@@ -1,11 +1,11 @@
 import json
-from datetime import datetime,timezone
+from functions import local_lambda
 
 def main(event, context):
-    now_utc = str(datetime.now(timezone.utc))
+    local_lambda()
 
     body = {
-        "currentTime": now_utc
+        "currentTime": 'done'
     }
 
     response = {
