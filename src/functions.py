@@ -16,6 +16,11 @@ env_path = Path('.') / '.env'
 load_dotenv(dotenv_path=env_path)
 
 
+def calculate_billing_fee(sub_total, company_fee, igv):
+    fee = sub_total * company_fee / 100
+    return fee * (100 + igv) / 100
+
+
 def get_time_range():
     today = datetime.date.today()
     last_monday = today - datetime.timedelta(days=today.weekday())
@@ -26,8 +31,10 @@ def get_time_range():
 
 def get_locals(connection):
     cursor = connection.cursor()
-    cursor.execute(
-        'SELECT loc.id, loc.company_id, com.fee FROM companies_local loc JOIN companies_company com ON loc.company_id = com.id')
+
+    locals_sql_query = 'SELECT loc.id, loc.company_id, com.fee, loc.name, cs.ruc, cs.razon_social, cs.address FROM companies_local loc JOIN companies_company com ON loc.company_id = com.id JOIN companies_supplier cs on loc.supplier_id = cs.id;'
+
+    cursor.execute(locals_sql_query)
     results = cursor.fetchall()
 
     return results
@@ -85,7 +92,7 @@ def send_mail_with_attachment(recipients_array, email_body, pdf):
     message.attachment = attachedFile
 
     sg = SendGridAPIClient(
-        api_key=os.getenv("SEND_GRIP_API_KEY"))
+        api_key=os.getenv("SENDGRID_API_KEY"))
 
     response = sg.send(message)
 
@@ -107,21 +114,39 @@ def generate_pdf(billing_context, order_context):
 
     return pdf
 
+def generate_mail_body(local_name, to_date, ruc, razon_social, address, total):
+    templateLoader = jinja2.FileSystemLoader(searchpath="./")
+    templateEnv = jinja2.Environment(loader=templateLoader)
+    TEMPLATE_FILE = "mail_body.html"
+    template = templateEnv.get_template(TEMPLATE_FILE)
 
-def process_billing(local, from_date, to_date, company_id, company_fee, connection):
+    outputText = template.render(local_name=local_name, to_date=to_date, ruc=ruc, razon_social=razon_social, address=address, total=total)
+    
+    return outputText
+
+
+def process_billing(local, from_date, to_date, company_id, company_fee, local_name, ruc, razon_social, address, connection):
     order_data = get_order_data(from_date, to_date, local, connection)
 
     cursor = connection.cursor()
 
     sql_query = 'INSERT INTO billings_billing (uuid, sub_total, fee, total, igv, start_date, end_date, company_id, local_id, status, created, modified) VALUES ( %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING id'
 
+    billing_fee = calculate_billing_fee(
+        order_data['total'], 0 if company_fee == None else company_fee, 18)
+
+    billing_subtotal = order_data['total'] - billing_fee
+
+    billing_igv = billing_subtotal * 18 / 100
+
+    billing_total = billing_subtotal + billing_igv
+
     cursor.execute(sql_query, (
         str(uuid.uuid4()),
-        order_data['sub_total'],
-        0 if company_fee == None else company_fee,
-        order_data['total'] if company_fee == None else company_fee +
-        order_data['total'],
-        order_data['igv_total'],
+        billing_subtotal,
+        billing_fee,
+        billing_total,
+        billing_igv,
         from_date,
         to_date,
         company_id,
@@ -148,7 +173,6 @@ def process_billing(local, from_date, to_date, company_id, company_fee, connecti
             order[0]
         ))
 
-
     suppliers_mails_query = 'SELECT email FROM companies_supplier WHERE company_id = %s'
 
     cursor.execute(suppliers_mails_query, (
@@ -157,20 +181,12 @@ def process_billing(local, from_date, to_date, company_id, company_fee, connecti
 
     suppliers_mails = cursor.fetchall()
 
-    local_data_sql = 'SELECT name FROM companies_local WHERE id = %s'
-
-    cursor.execute(local_data_sql, (
-        str(local)
-    ))
-
-    local_name = cursor.fetchone()[0]
-
     connection.commit()
 
     recipients = ''
 
     for supplier_mail in suppliers_mails:
-        recipients += supplier_mail[0] + ','
+        recipients += supplier_mail[0].strip() + ','
 
     if len(recipients) > 0:
         recipients = recipients[:-1]
@@ -196,11 +212,13 @@ def process_billing(local, from_date, to_date, company_id, company_fee, connecti
         })
 
     billing_context = {'start_date': str(from_date.strftime("%d/%m/%Y")), 'end_date': str(to_date.strftime("%d/%m/%Y")),
-                       'sub_total': order_data['sub_total'], 'igv': order_data['igv_total'], 'total': order_data['total'], 'local': {'name': local_name}}
+                       'sub_total': '{0:.2f}'.format(billing_subtotal), 'igv': '{0:.2f}'.format(billing_igv), 'total': '{0:.2f}'.format(billing_total), 'local': {'name': local_name}}
 
     pdf = generate_pdf(billing_context, order_context)
 
-    send_mail_with_attachment(recipients_array, str(order_data), pdf)
+    mail_body = generate_mail_body(local_name, str(to_date.strftime("%d/%m/%Y")), ruc, razon_social, address, '{0:.2f}'.format(billing_total))
+
+    send_mail_with_attachment(recipients_array, mail_body, pdf)
 
 
 def local_lambda():
@@ -214,7 +232,7 @@ def local_lambda():
 
         for local_data in locals_data:
             process_billing(
-                local_data[0], time_range[0], time_range[1], local_data[1], local_data[2], connection)
+                local_data[0], time_range[0], time_range[1], local_data[1], local_data[2], local_data[3], local_data[4], local_data[5], local_data[6], connection)
 
     except psycopg2.DatabaseError as e:
         print(f'Error {e}')
