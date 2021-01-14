@@ -114,19 +114,25 @@ def generate_pdf(billing_context, order_context):
 
     return pdf
 
+
 def generate_mail_body(local_name, to_date, ruc, razon_social, address, total):
     templateLoader = jinja2.FileSystemLoader(searchpath="./")
     templateEnv = jinja2.Environment(loader=templateLoader)
     TEMPLATE_FILE = "mail_body.html"
     template = templateEnv.get_template(TEMPLATE_FILE)
 
-    outputText = template.render(local_name=local_name, to_date=to_date, ruc=ruc, razon_social=razon_social, address=address, total=total)
-    
+    outputText = template.render(local_name=local_name, to_date=to_date,
+                                 ruc=ruc, razon_social=razon_social, address=address, total=total)
+
     return outputText
 
 
 def process_billing(local, from_date, to_date, company_id, company_fee, local_name, ruc, razon_social, address, emails, connection):
     order_data = get_order_data(from_date, to_date, local, connection)
+
+    if (len(order_data['data']) == 0):
+        print('no orders')
+        return None
 
     cursor = connection.cursor()
 
@@ -203,7 +209,8 @@ def process_billing(local, from_date, to_date, company_id, company_fee, local_na
 
     pdf = generate_pdf(billing_context, order_context)
 
-    mail_body = generate_mail_body(local_name, str(to_date.strftime("%d/%m/%Y")), ruc, razon_social, address, '{0:.2f}'.format(billing_total))
+    mail_body = generate_mail_body(local_name, str(to_date.strftime(
+        "%d/%m/%Y")), ruc, razon_social, address, '{0:.2f}'.format(billing_total))
 
     send_mail_with_attachment(recipients_array, mail_body, pdf)
 
