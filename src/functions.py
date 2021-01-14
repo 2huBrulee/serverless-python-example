@@ -32,7 +32,7 @@ def get_time_range():
 def get_locals(connection):
     cursor = connection.cursor()
 
-    locals_sql_query = 'SELECT loc.id, loc.company_id, com.fee, loc.name, cs.ruc, cs.razon_social, cs.address FROM companies_local loc JOIN companies_company com ON loc.company_id = com.id JOIN companies_supplier cs on loc.supplier_id = cs.id;'
+    locals_sql_query = 'SELECT loc.id, loc.company_id, com.fee, loc.name, cs.ruc, cs.razon_social, cs.address, cs.email FROM companies_local loc JOIN companies_company com ON loc.company_id = com.id JOIN companies_supplier cs on loc.supplier_id = cs.id;'
 
     cursor.execute(locals_sql_query)
     results = cursor.fetchall()
@@ -125,7 +125,7 @@ def generate_mail_body(local_name, to_date, ruc, razon_social, address, total):
     return outputText
 
 
-def process_billing(local, from_date, to_date, company_id, company_fee, local_name, ruc, razon_social, address, connection):
+def process_billing(local, from_date, to_date, company_id, company_fee, local_name, ruc, razon_social, address, emails, connection):
     order_data = get_order_data(from_date, to_date, local, connection)
 
     cursor = connection.cursor()
@@ -173,28 +173,15 @@ def process_billing(local, from_date, to_date, company_id, company_fee, local_na
             order[0]
         ))
 
-    suppliers_mails_query = 'SELECT email FROM companies_supplier WHERE company_id = %s'
-
-    cursor.execute(suppliers_mails_query, (
-        str(company_id)
-    ))
-
-    suppliers_mails = cursor.fetchall()
-
     connection.commit()
 
-    recipients = ''
-
-    for supplier_mail in suppliers_mails:
-        recipients += supplier_mail[0].strip() + ','
-
-    if len(recipients) > 0:
-        recipients = recipients[:-1]
-
-    recipients_array = recipients.split(',')
+    recipients_array = emails.split(',')
 
     if len(recipients_array) == 0:
         raise Exception('No recipients')
+
+    for recipient in recipients_array:
+        recipient = recipient.strip()
 
     order_context = []
 
@@ -232,7 +219,7 @@ def local_lambda():
 
         for local_data in locals_data:
             process_billing(
-                local_data[0], time_range[0], time_range[1], local_data[1], local_data[2], local_data[3], local_data[4], local_data[5], local_data[6], connection)
+                local_data[0], time_range[0], time_range[1], local_data[1], local_data[2], local_data[3], local_data[4], local_data[5], local_data[6], local_data[7], connection)
 
     except psycopg2.DatabaseError as e:
         print(f'Error {e}')
